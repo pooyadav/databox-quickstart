@@ -1,0 +1,46 @@
+{
+	"manifest-version": 1,
+	"name": "driver-test-python",
+	"docker-registry": "databoxsystems",
+	"docker-image-tag": "0.5.2",
+	"databox-type": "driver",
+	"version": "0.1.0",
+	"description": "A template Databox driver in Python",
+	"author": "Poonam Yadav <poonam.yadav@cl.cam.ac.uk>",
+	"license": "MIT",
+	"tags": [
+		"template",
+		"driver",
+		"python"
+	],
+	"homepage": "https://github.com/me-box/lib-python-databox",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/me-box/lib-python-databox"
+	},
+	"packages": [
+		{
+			"name": "Driver Test ",
+			"purpose": "Databox Driver Test",
+			"install": "required",
+			"risks": "Leaking all your data.",
+			"benefits": "Demo of the Databox driver.",
+			"datastores": []
+		}
+	],
+	"datasources": [],
+	"network-permissions": [],
+	"resource-requirements": {},
+	"export-whitelist": [],
+	"resource-requirements": {
+		"store": "core-store"
+	},
+	"provides": [
+		{
+			"data-source-type": "helloWorldActuator",
+			"description": "hello world actuator",
+			"store-type": "kv",
+			"schema": {}
+		}
+		]
+}
