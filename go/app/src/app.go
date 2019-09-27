@@ -47,6 +47,7 @@ func main() {
 		//turn on debug output for the databox library
 		libDatabox.OutputDebug(true)
 		//Set up a store client you will need one of these per store
+		libDatabox.Warn("Setting up new arbiterclient")
 		ac, _ := libDatabox.NewArbiterClient("./", "./", testArbiterEndpoint)
 		storeClient = libDatabox.NewCoreStoreClient(ac, "./", storeEndpoint, false)
 	} else {
