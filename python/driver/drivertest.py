@@ -17,7 +17,7 @@ import os
 import time
 
 sys.path.insert(1, '../')
-from lib import core_store as store #main function as providing the storeclient of core store.
+from lib import core_store as databox #main function as providing the storeclient of core store.
 from lib import config as config
 import datetime as datetime
 
@@ -25,10 +25,62 @@ TEST_STORE_URI =  os.environ.get('DATABOX_ZMQ_ENDPOINT') or "tcp://127.0.0.1:555
 TEST_ARBITER_URI = os.environ.get('DATABOX_ARBITER_ENDPOINT') or "tcp://127.0.0.1:4444"
 DATA_SOURCE_ID = str(datetime.date.today())
 
-newStore = store.StoreClient.NewStoreClient(TEST_STORE_URI, TEST_ARBITER_URI, False)
-res = newStore.storeCli.write("testdata1", 'KeyWrite', '{\"TEST\": \"data\"}', 'JSON')
-res = newStore.storeCli.read("testdata1", 'KeyWrite','JSON')
-print("Read data from store " + str(res))
+#newKVStore = databox.newKeyValueClient(TEST_STORE_URI, TEST_ARBITER_URI, False)
+#res = newKVStore.write("testdata1", 'KeyWrite', '{\"TEST\": \"data\"}', 'JSON')
+#res = newKVStore.read("testdata1", 'KeyWrite','JSON')
+#print("Read data from store " + str(res))
+
+newTSStore = databox.newTimeSeriesBlobClient(TEST_STORE_URI, TEST_ARBITER_URI, False)
+timeline = databox.newDataSourceMetadata()
+timeline['Description'] = 'Twitter user timeline data'
+timeline['ContentType'] = 'application/json'
+timeline['Vendor'] = 'Databox Inc.'
+timeline['DataSourceType'] = 'testdata1'
+timeline['DataSourceID'] = 'testdata1'
+timeline['StoreType'] = 'ts'
+
+try:
+    newTSStore.RegisterDatasource(timeline)
+except ValueError:
+    print("error in registoring datastore")
+cat = newTSStore.GetDatasourceCatalogue()
+
+res = newTSStore.write('testdata1','{\"idx\": \"16\"}',  contentFormat ='JSON')
+
+res1 = newTSStore.latest('testdata1')
+if(res1):
+    print("Data res1 latest from the store " + str(res1))
+
+res2 = newTSStore.earliest('testdata1')
+if(res2):
+    print("Data  res2  earliest from the store " + str(res2))
+
+res = newTSStore.write('testdata1','{\"idx\": \"17\"}',  contentFormat ='JSON')
+
+res3 = newTSStore.lastN('testdata1', 1)
+if(res3):
+    print("Data res3 last 1 from the store " + str(res3))
+
+res4 = newTSStore.lastN('testdata1', 2)
+if(res4):
+    print("Data res4 last 2 from the store " + str(res4))
+
+res5 = newTSStore.since('testdata1', 1570575084924)
+if(res5):
+    print("Data res5 since the time<1570575084924> from the store " + str(res5))
+
+
+res6 = newTSStore.range('testdata1', 1570575084924, 1570575441326)
+if(res6):
+    print("Data res6 in range<1570575084924, 1570575441326> from the store " + str(res6))
+
+
+res7 = newTSStore.writeAt('testdata1',1570575084925,'{\"idx\": \"20\"}')
+
+res8 = newTSStore.latest('testdata1')
+
+if(res8):
+    print("Data res8 lastest from the store " + str(res8))
 
 
 #app = Flask(__name__)

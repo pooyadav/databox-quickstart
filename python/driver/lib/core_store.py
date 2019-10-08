@@ -19,16 +19,14 @@ import base64
 # and arbiterEndpoint is provided by the DATABOX_ARBITER_ENDPOINT environment variable
 #to databox apps and drivers.
 
-class coreStoreClient:
-    def __init__(self, config, zestEndpoint, zestDealerEndpoint,  zestCli, arbiterCli):
+class StoreClient:
+    def __init__(self, config,storeEndpoint, arbiterEndpoint, storetype, enableLogging):
         self.config = config
-        self.zestEndpoint = zestEndpoint
-        self.zestDealerEndpoint = zestDealerEndpoint
-        self.zestCli = zestCli
-        self.arbiterCli = arbiterCli
-
-    def newStoreClient(config, zestEndpoint, zestDealerEndpoint,  zestCli, arbiterCli):
-        return coreStoreClient(config, zestEndpoint, zestDealerEndpoint,  zestCli, arbiterCli)
+        self.zestEndpoint = storeEndpoint
+        self.zestDealerEndpoint = storeEndpoint.replace(":5555", ":5556")
+        self.zestCli = zestClient.PyZestClient(config.CORE_STORE_KEY, self.zestEndpoint,self.zestDealerEndpoint,  enableLogging)
+        self.arbiterCli = arbiterClient.new_arbiter_client(arbiterEndpoint, enableLogging)
+        self.storetype = storetype
 
     def RegisterDatasource(self, DataSourceMetadata):
         return _registerDatasource(self.arbiterCli, self.zestCli, DataSourceMetadata)
@@ -41,24 +39,98 @@ class coreStoreClient:
         u =  urllib3.util.parse_url(hypercatObj.href)
         return u.scheme + '//' + u.host
 
-
     def read(self, dataSourceID, key, contentFormat = 'JSON'):
-        path = "/kv/" + dataSourceID + "/" + key
-        return _read(self.arbiterCli, self.zestCli, path, path, contentFormat)
+        if(self.storetype == 'KV'):
+            path = "/kv/" + dataSourceID + "/" + key
+            return _read(self.arbiterCli, self.zestCli, path, path, contentFormat)
 
-    def write(self, dataSourceID, key, payload, contentFormat = 'JSON'):
-        #print("Inside write")
-        path = "/kv/" + dataSourceID + "/" + key
-        return _write(self.arbiterCli, self.zestCli, path, path, payload, contentFormat)
+    def latest(self, dataSourceID):
+        if (self.storetype == 'TS'):
+            path = "/ts/" + dataSourceID + "/" + "latest"
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+        if (self.storetype == 'TSB'):
+            path = "/ts/blob/" + dataSourceID + "/" + "latest"
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
 
-        #def __del__(self):
-        #   self.store.closeSockets()
+    def earliest(self, dataSourceID):
+        if (self.storetype == 'TS'):
+            path = "/ts/" + dataSourceID + "/" + "earliest"
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+        if (self.storetype == 'TSB'):
+            path = "/ts/blob/" + dataSourceID + "/" + "earliest"
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+
+    def lastN(self, dataSourceID, n):
+        if (self.storetype == 'TS'):
+            path = "/ts/" + dataSourceID + "/" + "last" + "/" + str(n)
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+        if (self.storetype == 'TSB'):
+            path = "/ts/blob/" + dataSourceID + "/"+ "last" + "/" + str(n)
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+
+    def firstN(self, dataSourceID, n):
+        if (self.storetype == 'TS'):
+            path = "/ts/" + dataSourceID + "/" + "first" + "/" + str(n)
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+        if (self.storetype == 'TSB'):
+            path = "/ts/blob/" + dataSourceID + "/" + "first" + "/" + str(n)
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+
+    def since(self, dataSourceID, sinceTimeStamp):
+        if (self.storetype == 'TS'):
+            path = "/ts/" + dataSourceID + "/" + "since" + "/" + str(sinceTimeStamp)
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+        if (self.storetype == 'TSB'):
+            path = "/ts/blob/" + dataSourceID + "/" + "since" + "/" + str(sinceTimeStamp)
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+
+    def range(self, dataSourceID, formTimeStamp, toTimeStamp):
+        if (self.storetype == 'TS'):
+            path = "/ts/" + dataSourceID + "/" + "range" + "/" + str(formTimeStamp) + "/" + str(toTimeStamp)
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+        if (self.storetype == 'TSB'):
+            path = "/ts/blob/" + dataSourceID + "/" + "range" + "/" + str(formTimeStamp) + "/" + str(toTimeStamp)
+            return _read(self.arbiterCli, self.zestCli, path, path, 'JSON')
+
+    def observe(self, dataSourceID, timeOut = 0):
+        if (self.storetype == 'TS'):
+            path = "/ts/" + dataSourceID
+            return _observe(self.arbiterCli, self.zestCli, path, timeOut, 'JSON')
+        if (self.storetype == 'TSB'):
+            path = "/ts/blob/" + dataSourceID
+            return _observe(self.arbiterCli, self.zestCli, path, timeOut, 'JSON')
+
+    def stopObserving(self, dataSourceID):
+        print("Work-in-progress")
+
+
+
+    def write(self, dataSourceID, payload, **kwargs):
+        if("key" in kwargs):
+            key = kwargs['key']
+        if("contentFormat" in kwargs):
+            contentFormat = kwargs['contentFormat']
+        if (self.storetype == 'KV'):
+            path = "/kv/" + dataSourceID + "/" + key
+            return _write(self.arbiterCli, self.zestCli, path, path, payload, contentFormat)
+        if (self.storetype == 'TS'):
+            path = "/ts/" + dataSourceID
+            return _write(self.arbiterCli, self.zestCli, path, path, payload, contentFormat)
+        if (self.storetype == 'TSB'):
+            path = "/ts/blob/" + dataSourceID
+            return _write(self.arbiterCli, self.zestCli, path, path, payload, contentFormat)
+
+    def writeAt(self, dataSourceID, timestamp, payload):
+        path = "/ts/blob/" + dataSourceID + '/at/'+ str(timestamp)
+        tokenPath = "/ts/blob/" + dataSourceID + '/at/*'
+        return _write(self.arbiterCli, self.zestCli, path, tokenPath, payload, 'JSON')
+
 
 
 def _registerDatasource(arbiterClient, zestClient, DataSourceMetadata):
     if ValidateDataSourceMetadata(DataSourceMetadata) == True:
         try:
-            hyperCatObj = DataSourceMetadataToHypercat(zestClient.endpoint + '/' + DataSourceMetadata.StoreType + '/', DataSourceMetadata)
+            hyperCatObj = DataSourceMetadataToHypercat(zestClient.endpoint + '/' + DataSourceMetadata['StoreType'] + '/', DataSourceMetadata)
             hyperCatString = json.dumps(hyperCatObj)
             _write(arbiterClient, zestClient, '/cat', '/cat', hyperCatString, 'JSON')
         except ValueError:
@@ -84,14 +156,14 @@ def DataSourceMetadataToHypercat(endpoint, metadata):
 
            }
 
-    if(metadata.IsActuator):
-        cat['item-metadata'].push({"rel":"urn:X-databox:rels:isActuator", "val":metadata.IsActuator})
+    if(metadata['IsActuator']):
+        cat['item-metadata'].append({"rel":"urn:X-databox:rels:isActuator", "val":metadata['IsActuator']})
 
-    if(metadata.Unit):
-        cat['item-metadata'].push({"rel":"urn:X-databox:rels:hasUnit","val":metadata.Unit})
+    if(metadata['Unit']):
+        cat['item-metadata'].append({"rel":"urn:X-databox:rels:hasUnit","val":metadata['Unit']})
 
-    if (metadata.Location):
-        cat['item-metadata'].push({"rel":"urn:X-databox:rels:hasLocation","val":metadata.Location})
+    if (metadata['Location']):
+        cat['item-metadata'].append({"rel":"urn:X-databox:rels:hasLocation","val":metadata['Location']})
 
     return cat
 
@@ -100,10 +172,10 @@ def DataSourceMetadataToHypercat(endpoint, metadata):
 
 def ValidateDataSourceMetadata(DataSourceMetadata):
     try:
-        if not DataSourceMetadata or type(DataSourceMetadata) !='object' or not DataSourceMetadata.Description or not DataSourceMetadata.ContentType or not DataSourceMetadata.Vendor or not DataSourceMetadata.DataSourceType or not DataSourceMetadata.DataSourceID or not DataSourceMetadata.StoreType:
+        if not DataSourceMetadata or not DataSourceMetadata['Description'] or not DataSourceMetadata['ContentType'] or not DataSourceMetadata['Vendor'] or not DataSourceMetadata['DataSourceType'] or not DataSourceMetadata['DataSourceID'] or not DataSourceMetadata['StoreType']:
             raise ValueError
         else:
-            checkStoreType(DataSourceMetadata.StoreType)
+            checkStoreType(DataSourceMetadata['StoreType'])
     except ValueError:
         print("Error:: Not a valid DataSourceMetadata object missing required property")
         return False
@@ -121,19 +193,16 @@ def checkStoreType(StoreType):
         print("Error:: DataSourceMetadata invalid StoreType can be kv,ts or ts/blob")
 
 
+def newKeyValueClient(storeEndpoint, arbiterEndpoint, enableLogging): #this could be kv or blob
+        return  StoreClient(config,storeEndpoint, arbiterEndpoint, 'KV', enableLogging)
 
-class StoreClient:
-    def __init__(self, storeEndpoint, arbiterEndpoint, enableLogging):
-        self.zestEndpoint = storeEndpoint
-        self.zestDealerEndpoint = storeEndpoint.replace(":5555", ":5556")
-        self.zestCli = zestClient.PyZestClient(config.CORE_STORE_KEY, self.zestEndpoint,self.zestDealerEndpoint,  enableLogging)
-        #arbiterCli = arbiterClient(arbiterEndpoint, enableLogging)
-        self.arbiterCli = arbiterClient.new_arbiter_client(arbiterEndpoint, enableLogging)
-        self.storeCli = coreStoreClient.newStoreClient(config, self.zestEndpoint, self.zestDealerEndpoint,  self.zestCli, self.arbiterCli)
-        #print("client " + str(self.storeCli) )
+def newTimeSeriesBlobClient(storeEndpoint, arbiterEndpoint, enableLogging):
+        return StoreClient(config, storeEndpoint, arbiterEndpoint,'TSB', enableLogging)
 
-    def NewStoreClient(storeEndpoint, arbiterEndpoint, enableLogging):
-        return StoreClient(storeEndpoint, arbiterEndpoint, enableLogging)
+
+def newTimeSeriesClient(storeEndpoint, arbiterEndpoint, enableLogging):
+    return StoreClient(config, storeEndpoint, arbiterEndpoint, 'TS', enableLogging)
+
 
 
 
@@ -178,6 +247,9 @@ def _write(arbiterClient, zestClient, path, tokenPath, payload, contentFormat = 
         print("Write Error: for path " + ValueError)
 
 
+def _observe(arbiterClient, zestClient, path, timeOut, contentFormat = 'JSON'):
+    print("work-in-progress")
+
 
 
 def validateContentFormat(contentFormat):
@@ -197,7 +269,7 @@ def __del__(self):
     self.store.closeSockets()
 
 
-def  NewDataSourceMetadata():
+def  newDataSourceMetadata():
      return {'Description': ' ',
              'ContentType': ' ',
              'Vendor': ' ',

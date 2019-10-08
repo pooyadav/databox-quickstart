@@ -59,7 +59,6 @@ class PyZestClient:
 
 
     def post(self,path, payLoad, contentFormat,tokenString=None):
-
         self.logger.debug("Posting data to the endpoint")
         #return dictionary struct of header
         header = pyZestUtil.zestHeader()
